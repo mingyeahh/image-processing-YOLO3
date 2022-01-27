@@ -216,4 +216,5 @@ out_video.release()
 # cv.waitKey(0)
 # cv.destroyAllWindows()
 
+
 # python3 code/yolo.py --video_file outvid.avi -cl code/coco.names -cf code/yolov3.cfg -w code/yolov3.weights 
