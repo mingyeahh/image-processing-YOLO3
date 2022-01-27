@@ -165,7 +165,6 @@ def postprocess(image, results, threshold_confidence, threshold_nms):
         threshold_confidence,
         threshold_nms)
     for i in indices:
-        i = i[0]
         classIds_nms.append(classIds[i])
         confidences_nms.append(confidences[i])
         boxes_nms.append(boxes[i])
@@ -182,7 +181,8 @@ def getOutputsNames(net):
     layersNames = net.getLayerNames()
     # Get the names of the output layers, i.e. the layers with unconnected
     # outputs
-    return [layersNames[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+    # return [layersNames[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+    return [layersNames[i - 1] for i in net.getUnconnectedOutLayers()]
 
 ##########################################################################
 
@@ -195,10 +195,10 @@ output_video_file_name = 'output_video.avi'
 frames = []
 
 # total count for VALIDATION:
-total_count = 391
+# total_count = 391
 
 # total count for TEST:
-# total_count = 1475
+total_count = 1475
 
 ##########################################################################
 
@@ -235,9 +235,31 @@ else:
     net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
 
 ##########################################################################
-
+num_of_object = 0
+conf_count = 0
+conf_sum = 0
 # use command line arguments to read video_name
 print("Reading video file")
+
+def writeScores(image, avg_conf, obj_count, total_count):
+    height, width, channel = image.shape
+    bottomLeftCorner = (10,height-15)
+    bottomRightCorner = (width-210, height-15)
+    bottomMiddleHigh = (width//2 - 270, height-65)
+    bottomMiddleLow = (width//2 - 230, height-15)
+    conf_text = '%s: %.2f' % ("Mean_Conf", avg_conf)
+    count_text = '%s: %d' % ("Obj_Count", obj_count)
+    score_eq = '%s' % ("Score = Mean(Mean_Conf, Obj_Count/Total_Count)")
+    score_text = f"Score = ({avg_conf:.2f} + {obj_count}/{total_count})/2 = {(avg_conf + obj_count/total_count)/2:.3f}"
+    cv2.putText(image, conf_text, bottomLeftCorner,
+    cv2.FONT_HERSHEY_SIMPLEX, 0.75, (123,49,126), 2)
+    cv2.putText(image, count_text, bottomRightCorner,
+    cv2.FONT_HERSHEY_SIMPLEX, 0.75, (123,49,126), 2)
+    cv2.putText(image, score_eq, bottomMiddleHigh,
+    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (123,49,126), 2)
+    cv2.putText(image, score_text, bottomMiddleLow,
+    cv2.FONT_HERSHEY_SIMPLEX, 0.75, (123,49,126), 2)
+
 
 if (((args.video_file) and (cap.open(str(args.video_file))))):
 
@@ -268,6 +290,12 @@ if (((args.video_file) and (cap.open(str(args.video_file))))):
 
         # remove the bounding boxes with low confidence
         classIDs, confidences, boxes = postprocess(frame, results, confThreshold, nmsThreshold)
+        num_of_object += len(classIDs)
+        conf_count += len(confidences)
+        conf_sum += np.sum(confidences)
+        conf_average = conf_sum / conf_count
+        writeScores(frame, conf_average, conf_count, total_count)
+
 
         # draw resulting detections on image
         for detected_object in range(0, len(boxes)):
@@ -299,7 +327,10 @@ if (((args.video_file) and (cap.open(str(args.video_file))))):
 
         # to save in the video:
         frames.append(frame)
-
+    print('Found',num_of_object,"objects in total" )
+    print('Average confidence is: ', conf_average)
+    score = (conf_average + num_of_object/total_count)/2
+    print('Final score of item detection is: ', score)
     # create the video:
     height, width, channel = frames[0].shape
 
