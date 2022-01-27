@@ -11,17 +11,17 @@ transform.py is for image enhancement specifically for corrupted images with noi
 
 ### Executing program
 
-*Input of the program transform.py is a set of images.
+* Input of the program transform.py is a set of images.
 
-*The path to input is on line 10, users will need to set their own path to read the images. For example:
+* The path to input is on line 10, users will need to set their own path to read the images. For example:
 
 ```
 path_to_dataset = "path/to/imagedir"
 ```
 
-*Output of the program transform.py is a video made of a set of modified images and the directory with modified images in. 
+* Output of the program transform.py is a video made of a set of modified images and the directory with modified images in. 
 
-*The path to the output directory is on line 11, users will need to set their own path to store the output images after image processing. For example:
+* The path to the output directory is on line 11, users will need to set their own path to store the output images after image processing. For example:
 ```
 path_to_out = "path/to/outputdir"
 ```
