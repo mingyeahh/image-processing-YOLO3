@@ -21,16 +21,11 @@ for img in filenames:
     img_list.append(i)
 
 
-
-
 ##############                          ##############
 ############## Step 2: Images Dewarping ##############
 ##############                          ##############
 
 # set dewarping as the first task to do in case the black border affects image processing
-
-# get one image data to detect edges for dewarping
-subject = img_list[0]
 
 # found the four cornor pixels of the graph by diagonally reverse from four edges line by line till find the first non-zero pixel.
 def findUpLeftPixel(matrix):
@@ -44,7 +39,7 @@ def findUpLeftPixel(matrix):
             if i >= row or j >= col:
                 # skip out-of-bounds indexes
                 continue
-            item = subject[i][j]
+            item = matrix[i][j]
             if item != 0:
                 return i,j
     return None
@@ -58,7 +53,7 @@ def findUpRightPixel(matrix):
         while ((j+1) <= (col - 1)) and ((i+1) <= (row - 1)):
             i = i + 1
             j = j + 1      
-            item = subject[i][j]
+            item = matrix[i][j]
             if item != 0:
                 return i,j
     return None
@@ -72,7 +67,7 @@ def findBottomLeftPixel(matrix):
         while ((j-1) >= 0) and ((i-1) >= 0):
             i = i - 1
             j = j - 1      
-            item = subject[i][j]
+            item = matrix[i][j]
             if item != 0:
                 return i,j
     return None
@@ -85,42 +80,69 @@ def findBottomRightPixel(matrix):
         while ((j+1) <= col - 1) and ((i-1) >= 0):
             i = i - 1
             j = j + 1      
-            item = subject[i][j]
+            item = matrix[i][j]
             if item != 0:
                 return i,j
     return None
 
-# get all the return pixel positions by printing them out
-# print('Up left found at', findUpLeftPixel(subject)) = Up left found at (20, 20) #(row, col)
-# print('Up right found at', findUpRightPixel(subject)) = Up right found at (7, 943)
-# print('Bottom left found at', findBottomLeftPixel(subject)) = Bottom left found at (385, 16)
-# print('Bottom right found at', findBottomRightPixel(subject)) = Bottom right found at (374, 963)
 
-rows,cols = subject.shape
-# print(rows,cols) we can get that the size of the image size is (394 x 1024)
+def findCornerPixels(matrix):
+    ulr, ulc = findUpLeftPixel(matrix) #ulr = up left row, ulc = up left column
+    urr, urc = findUpRightPixel(matrix)
+    blr, blc = findBottomLeftPixel(matrix)
+    brr, brc = findBottomRightPixel(matrix)
+    return np.float32([[ulc,ulr],[blc,blr],[brc,brr],[urc,urr]])
 
-old = np.float32([[20,20],[16,385],[963,374],[943,7]])
-new = np.float32([[0,0],[0,393],[1023,393],[1023,0]])
+def makePerspectiveMatrix(img):
+    rows,cols = img.shape
+    old = findCornerPixels(img)
+    new = np.float32([[0,0],[0,rows - 1],[cols - 1,rows - 1],[cols - 1,0]])
 
-# Compute the perspective transform M
-M = cv.getPerspectiveTransform(old,new)
+    # Compute the perspective transform M
+    M = cv.getPerspectiveTransform(old,new)
+    return M
 
-# Apply the perspective transformation to the images one by one
-for n in range(len(img_list)):
-    i = img_list[n]
-    i = cv.warpPerspective(i,M,(1024,394))
-    cv.imwrite(os.path.join(path_to_output, filenames[n]), i)
+def dewarp(img_list):
+    subject = img_list[0]
+    rows,cols = subject.shape
+    M = makePerspectiveMatrix(subject)
+    for n in range(len(img_list)):
+        i = img_list[n]
+        i = cv.warpPerspective(i,M,(cols,rows))
+        cv.imwrite(os.path.join(path_to_output, filenames[n]), i)
 
-# store the dewarpped images data in a list for further transformation
+dewarp(img_list)
+
+# # store the dewarpped images data in a list for further transformation
 warpped_img_list = []
 for img in filenames:
     i= cv.imread(os.path.join(path_to_output, img),cv.IMREAD_GRAYSCALE)
     warpped_img_list.append(i)
 
 
-##############                                                           ##############
-############## Step 3: Noise Removal, Brightness and Contrast Adjustment ##############
-##############                                                           ##############
+##############                        ##############
+############## Step 3: Noise Removal  ##############
+##############                        ##############
+
+def removeNoise(img_list):
+    for i in range(len(img_list)):
+        each = img_list[i]
+        # sharpening the photos first before noise removel in case it'll remove too many details
+        gaussian = cv.GaussianBlur(each,(5,5),0)
+        sharpen1 = cv.addWeighted(each,1.5,gaussian,-0.5,1)
+
+        # salt and pepper noise removal using medianBlur
+        median = cv.medianBlur(sharpen1, 3)
+
+        cv.imwrite(os.path.join(path_to_output, filenames[i]), median)
+        img_list[i] = median
+    cv.destroyAllWindows()
+
+removeNoise(warpped_img_list)
+
+##############                                             ##############
+############## Step 4: Brightness and Contrast Adjustment  ##############
+##############                                             ##############
 
 # prepare gama correction function to adjust contrast and brightness
 def gammaCorrection(src, gamma):
@@ -128,30 +150,26 @@ def gammaCorrection(src, gamma):
     table = [((i / 255) ** invGamma) * 255 for i in range(256)]
     table = np.array(table, np.uint8)
     return cv.LUT(src, table)
- 
-for i in range(len(warpped_img_list)):
-    each = warpped_img_list[i]
 
-    # sharpening the photos first before noise removel in case it'll remove too many details
-    gaussian = cv.GaussianBlur(each,(5,5),0)
-    sharpen1 = cv.addWeighted(each,1.5,gaussian,-0.5,1)
+def adjustContrastandBrightness(img_list):
 
-    # salt and pepper noise removal using medianBlur
-    median = cv.medianBlur(sharpen1, 3)
+    for i in range(len(img_list)):
+        each = img_list[i]
 
-    # adjust strong contrast and brightness using gamma correction
-    gamma = gammaCorrection(median, 2.0)
+        # adjust strong contrast and brightness using gamma correction
+        gamma = gammaCorrection(each, 2.0)
 
-    # sharpening edges to make objects more recognisable
-    gaussian = cv.GaussianBlur(gamma,(5,5),0)
-    sharpen2 = cv.addWeighted(gamma,1.5,gaussian,-0.5,1)
-    cv.imwrite(os.path.join(path_to_output, filenames[i]), sharpen2)
-cv.destroyAllWindows()
+        # sharpening edges to make objects more recognisable
+        gaussian = cv.GaussianBlur(gamma,(5,5),0)
+        sharpen2 = cv.addWeighted(gamma,1.5,gaussian,-0.5,1)
+        cv.imwrite(os.path.join(path_to_output, filenames[i]), sharpen2)
+    cv.destroyAllWindows()
 
+adjustContrastandBrightness(warpped_img_list)
 
-##############               ##############
-############## Video making  ##############
-##############               ##############
+# ##############               ##############
+# ############## Video making  ##############
+# ##############               ##############
 
 # append the modified images to a list
 final_list = []
