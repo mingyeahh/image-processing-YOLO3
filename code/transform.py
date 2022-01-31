@@ -87,14 +87,14 @@ def findBottomRightPixel(matrix):
 
 
 def findCornerPixels(matrix):
-    ulr, ulc = findUpLeftPixel(matrix) #ulr = up left row, ulc = up left column
-    urr, urc = findUpRightPixel(matrix)
-    blr, blc = findBottomLeftPixel(matrix)
-    brr, brc = findBottomRightPixel(matrix)
+    ulr, ulc = findUpLeftPixel(matrix) # ulr = up left row, ulc = up left column
+    urr, urc = findUpRightPixel(matrix) # urr = up right row, urc = up right column
+    blr, blc = findBottomLeftPixel(matrix) # blr = bottom left row, blc = bottom left column
+    brr, brc = findBottomRightPixel(matrix) # brr = bottom right row, brc = bottom right column
     return np.float32([[ulc,ulr],[blc,blr],[brc,brr],[urc,urr]])
 
 def makePerspectiveMatrix(img):
-    rows,cols = img.shape
+    rows,cols = img.shape #get the shape of the image
     old = findCornerPixels(img)
     new = np.float32([[0,0],[0,rows - 1],[cols - 1,rows - 1],[cols - 1,0]])
 
@@ -103,7 +103,7 @@ def makePerspectiveMatrix(img):
     return M
 
 def dewarp(img_list):
-    subject = img_list[0]
+    subject = img_list[0] #use the first image as a model to get the perspective transform M because all the images are warpped the same way
     rows,cols = subject.shape
     M = makePerspectiveMatrix(subject)
     for n in range(len(img_list)):
@@ -113,7 +113,7 @@ def dewarp(img_list):
 
 dewarp(img_list)
 
-# # store the dewarpped images data in a list for further transformation
+# store the dewarpped images data in a list for further transformation
 warpped_img_list = []
 for img in filenames:
     i= cv.imread(os.path.join(path_to_output, img),cv.IMREAD_GRAYSCALE)
